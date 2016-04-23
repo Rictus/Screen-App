@@ -2,7 +2,7 @@ var express = require('express');
 var session = require('express-session'); //Pour créer/gérer des sessions
 var mysql = require('mysql');
 var config = require('./config.json'); //Fichier de configuration
-var bdd_plv = require('./node_modules/BDD_PLV/bdd_plv.js'); //Gestion de la base de données
+var bdd_plv = require('./BDD_PLV/bdd_plv.js'); //Gestion de la base de données
 var multer = require('multer');//Gestionnaire pour récuperer les données des formulaires en multipart/form-data.
 var sessionStore = new session.MemoryStore(); //Les sessions seront stockés dans la RAM du serveur
 var app = new express(); //Application contenant tous les middlewares
@@ -30,7 +30,7 @@ connexionBDD.connect(function (err) {
         return;
     }
 
-    console.log('Connexion avec la base de données réussie. id = ' + connexionBDD.threadId);
+    console.log('Connexion avec la base de données réussie');
 });
 
 
