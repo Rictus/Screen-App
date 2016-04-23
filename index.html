@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Accueil de l'application PLV de l'Université de Cergy-Pontoise</title>
+    <link rel="stylesheet" href="/CSS/diaporama.css">
+  </head>
+
+  <body>
+    <h1>PLV de l'Université de Cergy Pontoise</h1>
+    <p>Vous avez <span id="timeBeforeLeaving">15</span> seconde(s) pour faire votre choix, vous passerez sinon en mode diaporama.</p>
+
+    <a href="./connexion">Me Connecter</a>
+    <a href="./inscription">Inscription</a>
+    <a href="./diaporama">Mode Diaporama</a>
+
+
+    <script> 
+      //Après 15 secondes, l'utilisateur est redirigé vers la page de diaporama
+      var redirection = 'window.location.replace("./diaporama")';
+      setTimeout(redirection,150*1000);  //15 secondes
+    </script>
+  </body>
+</html>

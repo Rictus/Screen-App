@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang=fr>
+
+<head>
+    <meta charset="utf-8"/>
+    <title>Application PLV de l'Université de Cergy-Pontoise</title>
+    <link rel="stylesheet" href="/CSS/diaporama.css">
+</head>
+
+<body id="diaporama">
+
+<%
+if (typeof informationMessage !== 'undefined')
+{
+if(informationMessage != null)
+{
+%>
+<div class="instantMessage"><%= informationMessage %></div>
+<%
+}
+}
+%>
+
+<%
+if (typeof login == 'undefined' || login == null) {
+    login = "Visiteur"
+}
+%>
+<% if (typeof lastSlideDeleted == 'undefined' || lastSlideDeleted == null) {
+    lastSlideDeleted = -1;
+}
+%>
+
+<% if(lastSlideDeleted != -1) { %>
+<div class='quickTopInfo' id="slideHasBeenDeleted"><a href="/recoverSlide/<%= lastSlideDeleted %>">Vous venez de
+        supprimer
+        un slide. Cliquez ici pour annuler cette action.</a></div>
+<% } %>
+<div class="slideShowContainer">
+    <div class="column"></div>
+    <div class="column"></div>
+</div>
+
+
+<div class="bottom">
+    <nav>
+        <div class="menuButton">
+            <div class="line"></div>
+            <div class="line"></div>
+            <div class="line"></div>
+        </div>
+        <ul>
+            <% if(login == "Visiteur") { %>
+            <li><a href="/connexion">Connexion</a></li>
+            <% } else { %>
+            <li><a href="/logout">Fermer Session</a></li>
+            <li><a href="/newSlide">Creer un nouveau slide</a></li>
+            <% } %>
+            <li><a href="#" id="chooseAudience">Audience</a></li>
+            <li><a href="#" id="gofullscreen">Plein écran</a></li>
+            <li><a href="#" id="exitfullscreen">Sortir du plein écran</a></li>
+        </ul>
+    </nav>
+    <div id="textStream-container">
+        <div id="textStream">
+            <p id="textInStream">
+            </p>
+        </div>
+    </div>
+    <div class="infos">
+        <div id="actualDate"></div>
+        <div id="userName"><%= login %></div>
+    </div>
+</div>
+<script src='/JS/common.js'></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    var body = document.getElementById('diaporama');
+    /** Connexion avec le serveur en utilisant socket.io **/
+    var socket = io.connect(getCurrentUrl());
+    /** Variables pour le défilement de texte **/
+    var textStream = document.getElementById('textStream');
+    var textInStream = document.getElementById('textInStream');
+    var textStreamWidth = textInStream.offsetWidth;
+    var posInit = 0;
+    var endPos = 0;
+
+    var textsToStream = []; //Tableau de textes à faire défiler
+    var iterator = 0;
+    var gofullscreen = document.getElementById('gofullscreen');
+    var exitfullscreen = document.getElementById('exitfullscreen');
+    var selectedAudience = 0;
+    /** Selection d'éléments sur le DOM **/
+    var container = document.getElementsByClassName("slideShowContainer")[0];
+    var selectAudienceButton = document.getElementById("chooseAudience");
+    var slideHasBeenDeleted = document.getElementById('slideHasBeenDeleted');
+    var bottomHeight = (document.getElementsByClassName('bottom')[0]).clientHeight; //Hauteur de la balise de bas d'écran
+    /** Variables à la gestion des colonnes et leur défilement **/
+    var firstColumn = document.getElementsByClassName("column")[0];
+    var secondColumn = document.getElementsByClassName("column")[1];
+    var nbSlideFirstColumn = 0;
+    var nbSlideSecondColumn = 0;
+    var firstColumnPosition = 0;
+    var secondColumnPosition = 0;
+    /** Timers **/
+    var timeForSlideToDisappear = 1500; //L'animation de disparition d'un slide prend 1500 ms
+    var speedScroll = 60;
+    var timeToWaitBetweenEachSlides = 3000;
+    var timeToWaitEndOfScroll = 3000;
+    var timeBetweenEachHighLight = 10000;
+    var intervalExpirationCheck = 30 * 1000;
+    var intervalCheckNewSlides = 60 * 1000;
+    firstColumn.style.position = "relative";
+    secondColumn.style.position = "relative";
+    firstColumn.style.top = 0;
+    secondColumn.style.top = 0;
+    exitfullscreen.style.display = "none";
+
+    body.onload = function () {
+        /** Fonctions de fullscreen **/
+        gofullscreen.onclick = function () {
+            launchIntoFullscreen(document.documentElement); // the whole page
+            ((document.getElementsByClassName('slideShowContainer'))[0]).scrollTop = 0;
+            exitfullscreen.style.display = "block";
+            gofullscreen.style.display = "none";
+        };
+        exitfullscreen.onclick = function () {
+            exitFullscreen();
+            exitfullscreen.style.display = "none";
+            gofullscreen.style.display = "block";
+        };
+
+        /** Bouton pour annuler l'action de suppression d'un slide qui a été supprimé à faire disparaitre*/
+        if (slideHasBeenDeleted) {
+            window.setTimeout(function () {
+                slideHasBeenDeleted.style.display = "none";
+            }, 6000);
+        }
+
+        /** Verifier à interval régulier si un slide est expiré */
+        var expirationChecking = window.setInterval(checkExpirationAllSlides, intervalExpirationCheck);
+        /** Verifier à interval régulier si un slide a besoin d'être diffusé*/
+        var newSlideChecking = setInterval(function () {
+            socket.emit('getslides', {audience: selectedAudience, previousAudience: selectedAudience});
+        }, intervalCheckNewSlides);
+
+        /** Le défilement de texte et des colonnes commencent après 1,5 sec après le chargement de la page */
+        window.setTimeout(nextTextStream, 1500);
+        window.setTimeout(moveFirstColumnUp, 1500);
+
+        /** Fonction de clignotement d'un slide d'importance 'urgente' **/
+        var highlightIntervalFunction = function () {
+            var slides = document.getElementsByClassName('slide');
+            for (var i = 0; i < slides.length; i++) {
+                if (slides[i].getAttribute('importanceslide') == "infoUrgente") {
+                    slides[i].classList.toggle('redHighlight');
+                }
+            }
+        };
+        /** Interval appelant la fonction de clignotement */
+        var highlightInterval = window.setInterval(highlightIntervalFunction, timeBetweenEachHighLight);
+
+        /** Au click du bouton d'audience, on fait apparaître un panel pour créer ou selectionner une audience **/
+        selectAudienceButton.addEventListener('click', function () {
+            if (document.getElementById("topWindow") == null) {
+                var topWindow = createCompleteElement('div', [['id', 'topWindow']]);
+                var audiencePanelContainer = createCompleteElement('div', [['id', 'audiencesContainer']]);
+                topWindow.appendChild(audiencePanelContainer);
+                document.body.appendChild(topWindow);
+                socket.emit('getAllAudiences');
+                socket.on('reply_getAllAudiences', function (rows) {
+                    for (var i = 0; i < rows.length; i++) {
+                        var audienceCible = rows[i]["intitule"];
+                        var idAudienceCible = rows[i]["id"];
+                        var el = createCompleteElement('a', [['href', rows[i]["id"]]], rows[i]["intitule"]);
+                        el.addEventListener('click', function () {
+                            var id = this.getAttribute("href");
+                            this.setAttribute("href", "#");
+                            document.body.removeChild(topWindow);
+							console.log("selected audience : "+id);
+                            EraseAndLoadSlides(id);
+                            selectedAudience = id;
+                        });
+                        audiencePanelContainer.appendChild(el);
+                    }
+                    var formsContainer = createCompleteElement('div', [['class', '']]);
+                    var formCreateAudience = createCompleteElement('form', [['method', 'POST'], ['action', '/createAudience'], ["enctype", "multipart/form-data"], ['class', 'simpleForm']]);
+                    var inputCreateAudience = createCompleteElement('input', [['type', 'text'], ['id', 'newAudienceInput'], ['name', 'intituleCreateAudience'], ['placeholder', 'Intitulé de la nouvelle audience'], ['required', 'required']]);
+                    var inputLabelCreateAudience = createCompleteElement('label', [['for', 'newAudienceInput']], 'Créer une audience');
+                    var msgExistCreateAudience = createCompleteElement('div');
+                    var submitContainerCreateAudience = createCompleteElement('div', [['class', 'submit']]);
+                    var submitLabelCreateAudience = createCompleteElement('label', [['for', 'submitCreateAudience']], 'Valider');
+                    var submitInputCreateAudience = createCompleteElement('input', [['type', 'submit'], ['id', 'submitCreateAudience']]);
+                    submitContainerCreateAudience.appendChild(submitLabelCreateAudience);
+                    submitContainerCreateAudience.appendChild(submitInputCreateAudience);
+                    formCreateAudience.appendChild(inputLabelCreateAudience);
+                    formCreateAudience.appendChild(inputCreateAudience);
+                    formCreateAudience.appendChild(msgExistCreateAudience);
+                    formCreateAudience.appendChild(submitContainerCreateAudience);
+                    formsContainer.appendChild(formCreateAudience);
+                    topWindow.appendChild(formsContainer);
+
+                    submitInputCreateAudience.addEventListener('click', function () {
+                        if (inputCreateAudience.value != "" && !msgExistCreateAudience.hasChildNodes()) {
+                            formCreateAudience.submit();
+                        }
+                    });
+
+                    inputCreateAudience.addEventListener('input', function () {
+                        var value = this.value;
+                        if (value != "")
+                            socket.emit('isAudienceExist', {intitule: value});
+
+                        socket.on('reply_isAudienceExist', function (response) {
+                            if (response['exist'] == 'true') {
+                                if (!msgExistCreateAudience.hasChildNodes()) {
+                                    submitInputCreateAudience.removeAttribute('type');
+                                    msgExistCreateAudience.appendChild(document.createTextNode('Une audience de même nom existe déjà.'));
+                                }
+                            }
+                            else {
+                                if (msgExistCreateAudience.hasChildNodes()) {
+                                    submitInputCreateAudience.setAttribute('type', 'submit');
+                                    msgExistCreateAudience.removeChild(msgExistCreateAudience.firstChild);
+                                }
+
+                            }
+                        });
+                    });
+                });
+            }
+        });
+
+        /** Obtenir à interval régulier la dernière version de la configuration */
+        var getConfigInterval = window.setInterval(function () {
+            socket.emit('getConfig');
+        }, 60 * 60 * 1000); //1h
+
+
+        /**** Réponses serveur ****/
+        socket.on('reply_getConfig', function (data) {
+            speedScroll = data["config"].speedScroll;
+            timeToWaitBetweenEachSlides = data["config"].timeToWaitBetweenEachSlides;
+            timeToWaitEndOfScroll = data["config"].timeToWaitEndOfScroll;
+            intervalExpirationCheck = data["config"].intervalExpirationCheck;
+            timeBetweenEachHighLight = data["config"].timeBetweenEachHighLight;
+            //Suppression des intervalles
+            clearInterval(expirationChecking);
+            clearInterval(newSlideChecking);
+            clearInterval(highlightInterval);
+            //Redéfinition avec les nouveaux timings
+            expirationChecking = window.setInterval(checkExpirationAllSlides, intervalExpirationCheck);
+            newSlideChecking = setInterval(function () {
+                socket.emit('getslides', {audience: selectedAudience, previousAudience: selectedAudience})
+            }, intervalCheckNewSlides);
+            highlightInterval = window.setInterval(window.setInterval(highlightIntervalFunction, data["config"].timeBetweenEachHighLight));
+        });
+
+        socket.on('reply_getSlides', function (rows) {
+            console.log('Ajout de %s slides.', rows.length);
+            for (var i = 0; i < rows.length; i++) {
+                addToTextStream(rows[i]);
+                var s = createSlide(rows[i], false);
+                if (s) {
+                    insertSlideInContainer(s);
+                }
+            }
+        });
+
+        /** Le serveur nous demande d'insérer le slide donné */
+        socket.on('newSlideInserted', function (newSlide) {
+            //Seulement s'il correspond à l'audience selectioné
+            if (newSlide["audience"] == selectedAudience || selectedAudience == 0 || newSlide["audience"] == 0) {
+                var newSlide = {
+                    id: newSlide["id"],
+                    type: newSlide["type"],
+                    titre: newSlide["titre"],
+                    texte: newSlide["texte"],
+                    image_url: newSlide["image_url"],
+                    video_url: newSlide["video_url"],
+                    importance: newSlide["slideImportance"],
+                    audience: newSlide["audience"],
+                    date_debut: newSlide["startDate"],
+                    time_debut: newSlide["startTime"],
+                    date_fin: newSlide["endDate"],
+                    time_fin: newSlide["endTime"]
+                };
+                addToTextStream(newSlide);
+                var s = createSlide(newSlide, true);
+                if (s) insertSlideInContainer(s);
+            }
+        });
+        /** Un autre utilisateur a supprimé un slide, on doit aussi faire cette action ici si le slide est present. */
+        socket.on('deleteSlide', function (data) {
+            //Recherche du slide en question
+            var allslides = document.getElementsByClassName('slide');
+            var i = 0;
+            while (i < allslides.length && allslides[i].getAttribute('idslide') != data['id']) {
+                i++;
+            }
+            if (allslides[i].getAttribute('idslide') == data['id'])
+                removeSpecificSlide(allslides[i], false); //False: Pas besoin d'avertir le serveur
+
+            //On le retire aussi du défilement de texte
+            i = 0;
+            while (i < textsToStream.length && textsToStream[i].id != data['id']) {
+                i++;
+            }
+            if (textsToStream[i].id == data['id']) {
+                textsToStream.splice(i, 1);
+            }
+        });
+
+
+        socket.emit('getConfig');
+        socket.emit('getSlides', {audience: selectedAudience});
+    }
+</script>
+
+
+</body>
+
+</html>

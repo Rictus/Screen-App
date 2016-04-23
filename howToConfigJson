@@ -1,0 +1,80 @@
+Le fichier config.json permet de configurer différentes partie de l'application.
+"databaseConnexion" : { 
+	"host" : "localhost",
+	"user" : "root",
+	"port"	  : 3306,
+	"localAddress": "",
+	"password" : "", 
+	"database" : "plv",
+	"dateStrings" : "true"
+}
+
+Cette partie configure la connexion à la base de données. Le champ 'dateStrings' force la conversion des dates en chaîne de caractères. 
+Nous vous conseillons de ne pas changer ce paramètre.
+Le champ 'localAddress' est utile si vous prevoyez d'utiliser une connexion TCP vers la base de données. Il faut alors préciser l'adresse ip locale.
+
+"diaporamaConfig" : {
+	"speedScroll" : 60, 
+	"timeToWaitBetweenEachSlides" : 3000, 
+	"timeToWaitEndOfScroll" : 3000,
+	"checkExpirationEach" : 30000,
+	"intervalExpirationCheck" : 30000,
+	"intervalCheckNewSlides" : 60000,
+	"timeBetweenEachHighLight": 10000
+},
+
+Cette partie configure la page de diaporama.
+"speedScroll" configure la vitesse de défilement. Il s'agit du temps (en millisecondes) entre chaque défielement de 1 pixel vers le haut.
+
+"timeToWaitBetweenEachSlides" configure le temps d'attente entre chaque slide. C'est à dire qu'en cours de défilement, si un slide a atteint
+le haut de l'écran, alors un temps (en millisecondes) d'attente sera marqué.
+
+"timeToWaitEndOfScroll" configure le temps d'attente à la fin du défilement. C'est à dire que si le bas du dernier slide est affiché, 
+nous considérons que le défilement est terminé (nous ne faisons pas défiler la colonne pour afficher du vide). Un temps d'attente doit
+donc être marqué avant de retourner tout en haut de la colonne.
+
+"intervalExpirationCheck" configure le temps d'attente (en ms) avant de vérifier si un slide affiché à l'écran est expiré. Chaque slide
+possède une date d'expiration, si cette date est atteinte, le slide est retiré de l'écran. Si par exemple le temps est configuré à 30*1000,
+alors toutes les 30 secondes, on vérifie si un slide a expiré.
+
+"intervalCheckNewSlides" même idée que pour intervalExpirationCheck sauf qu'il s'agit ici de vérifier si un nouveau slide n'est pas
+à diffuser. Par exemple, si un slide a été créé hier et que l'application fonctionne sans arrêt depuis 2 jours, il faut pouvoir
+aller chercher dans la base de données les nouveaux slides. Si le temps est configuré à 30*1000, alors toutes les 30 secondes le 
+client demande au serveur si de nouveaux slides sont disponibles à l'affichage.
+
+"timeBetweenEachHighLight" configure la durée avant le prochain highlight. Quand un slide possède l'importance maximale (infoUrgente), il est
+animé pour "clignoter" en rouge. Cette animation de clignottement réalise en faite deux clignotements et attend 2 fois le temps défini par ce champ (en millisecondes).
+Nous vous conseillons de ne pas mettre une valeur inférieur à 4000 ms puisque l'animation elle-même dure 4 secondes.
+
+
+Après un changement dans config.json, nous vous conseillons de redémarrer le serveur.
+
+
+
+
+"formConfig" : {
+	"maxFileSize" : 8000000,
+	"maxFieldSize" : 50000
+}
+
+Cette partie configure le formulaire de création de slide.
+"maxFileSize" configure la taille maximale d'un fichier (image par ex) acceptable pour le serveur. L'unité est l' Octet.
+"maxFieldSize" configure la taille maximale d'un champ. L'unité est l'Octet, pour une taille de 50 000 o max, l'utilisateur pourras 
+écrire au maximum 50 000 caractères dans un champ texte.
+
+
+"inscriptionConfig" : {
+	"secretCode" : "UeS$,b29"	
+}
+
+Cette partie configure le formulaire permettant l'inscription d'un nouvel utilisateur.
+"secretCode" est le code secret que doit fournir l'utilisateur pour avoir le droit de s'inscrire. Libre à vous
+de créer un code aussi compliqué que possible. Les majuscules et les minuscules sont considérés comme des caractères
+différents (sensible à la casse).
+
+"cookie" : {
+	"maxAge" : 604800000
+}
+
+Cette partie configure le cookie servant à garder en vie la session de l'utilisateur.
+L'unité est la milliseconde. Malheureusement, vous ne pouvez pas écrire 1000*60*60*24*7 à la place de 604800000.

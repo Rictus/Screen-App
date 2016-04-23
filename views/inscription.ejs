@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Page d'inscription à l'application PLV de l'Université de Cergy-Pontoise</title>
+		<link rel="stylesheet" href="/CSS/diaporama.css">
+	</head>
+
+	<body>
+		<% 
+	if (typeof informationMessage !== 'undefined')
+	{
+		if(informationMessage!=null)
+		{
+			%>
+		<div class="instantMessage"><%=informationMessage%></div>
+		<%
+		}
+		}%>
+		<div class="center-content">
+			<form action="/inscription" id="inscriptionForm" method="post" enctype="multipart/form-data" id="form">
+
+				<div class="input">
+					<label for="login">Login</label>
+					<input type="text" name="login" id="login" placeholder="Tapez un login" required> 
+					<span class='error' id="known_user"></span>  
+				</div>
+
+				<div class="input">
+					<label for="password">Mot de passe</label>
+					<input type="password" min="5" name="password" id="password" placeholder="Tapez votre mot de passe" required>
+				</div>
+
+				<div class="input">
+					<label for="password_verification">Répéter le mot de passe </label>
+					<input type="password" min="5" name="password_verification" id="password_verification" placeholder="Retapez ce mot de passe" required>
+					<span class='error' id="same_password"></span>
+				</div>
+				<div class="input">
+					<label for="secret_code">Code secret d'inscription</label>
+					<input type="password" name="secret_code" id="secret_code" placeholder="Contacter l'administrateur pour obtenir ce code" required>
+				</div>
+				<div class="submit">
+					<label for="submit">Valider</label>
+					<input type="submit" id="submit">
+				</div>  
+			</form>
+			<a href="/diaporama" class='button'>Acceder au mode diaporama sans inscription</a>
+			<a href="/connexion" class='button'>Retour page connexion</a>
+		</div>
+
+
+		<div class="bottom"> 
+			<div class="centerTitle">
+				Page d'inscription
+			</div>
+			<div class="infos">
+				<div id="actualDate"></div> 
+			</div>
+		</div>
+
+		<script src="/socket.io/socket.io.js"></script>
+		<script src="/JS/common.js"></script>
+		<script>
+			var socket = io.connect('http://localhost:5858');
+			var submit = document.getElementById('submit'); 
+			var login = document.getElementById('login');
+			var password = document.getElementById('password');
+			var password_verification = document.getElementById('password_verification');
+			var spanLogin_knownUser = document.getElementById('known_user');
+			var spanPassword_samePassword = document.getElementById('same_password');
+
+			/** Verification de la correspondance entre les deux mots de passe */ 
+			password_verification.onkeyup = checkIfSamePassword;
+			password.onkeyup = checkIfSamePassword;
+
+			function checkIfSamePassword() {
+				if(password.value!=password_verification.value)
+				{
+					if(! spanPassword_samePassword.hasChildNodes() )
+						spanPassword_samePassword.appendChild(document.createTextNode("Les deux mot de passe sont différents."));
+				}
+				else
+				{
+					if(spanPassword_samePassword.hasChildNodes())
+					{
+						spanPassword_samePassword.removeChild(spanPassword_samePassword.firstChild);
+					} 
+				}
+			}
+
+			/** Verification si le login est déjà utilisé */
+			login.addEventListener('input', function() {
+				if(login.value != "")
+				{
+					socket.emit('checkLoginExist',login.value);
+
+					socket.on('reply_checkLoginExist', function(data) {
+						if(data["exist"]=="false")
+						{ //Le login est disponible 
+							if( spanLogin_knownUser.hasChildNodes())
+							{ //Qqch est présent dans le span, suppression.
+								spanLogin_knownUser.removeChild(spanLogin_knownUser.firstChild);
+							}
+						}
+						else if(data["exist"]=="true")
+						{
+							//Le login existe déjà, on avertit l'utilisateur
+							if( ! spanLogin_knownUser.hasChildNodes())
+							{ //Rien n'a encore été écrit dans ce span
+								spanLogin_knownUser.appendChild(document.createTextNode("Ce login existe déjà."));
+							}
+						}
+					});
+				}
+			});
+		</script> 
+	</body>
+</html>

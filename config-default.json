@@ -1,0 +1,31 @@
+
+{	
+	"databaseConnexion" : {
+		"host" : "localhost",
+		"user" : "root",
+		"port"	  : 3306,
+		"localAddress": "",
+		"password" : "", 
+		"database" : "plv",
+		"dateStrings" : "true"
+	}, 
+	"diaporamaConfig" : {
+		"speedScroll" : 60, 
+		"timeToWaitBetweenEachSlides" : 3000, 
+		"timeToWaitEndOfScroll" : 3000,
+		"checkExpirationEach" : 30000,
+		"intervalExpirationCheck" : 30000,
+		"intervalCheckNewSlides" : 60000,
+		"timeBetweenEachHighLight": 10000
+	},
+	"formConfig" : {
+		"maxFileSize" : 10000000,
+		"maxFieldSize" : 50000
+	},
+	"inscriptionConfig" : {
+		"secretCode" : "UeS$,b29"	
+	},
+	"cookie" : {
+		"maxAge" : 604800000
+	}
+}

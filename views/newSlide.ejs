@@ -1,0 +1,469 @@
+<%
+var now = new Date(Date.now());
+var nowYear = now.getFullYear();
+var nowTenYear = now.getFullYear() + 10;
+var nowMonth = now.getMonth() + 1;
+var nowDay = now.getUTCDate();
+var nowNextDay = now.getUTCDate() + 1;
+var nowHour = now.getHours();
+var nowNextHour = now.getHours() + 1;
+var nowMinuts = now.getMinutes();
+//Ajout du 0 si le nombre est inféreur à 10 pour respecter le format
+nowMonth = (nowMonth < 10) ? "0" + nowMonth : nowMonth;
+nowDay = (nowDay < 10) ? "0" + nowDay : nowDay;
+nowNextDay = (nowNextDay < 10) ? "0" + nowNextDay : nowNextDay;
+nowHour = (nowHour < 10) ? "0" + nowHour : nowHour;
+nowNextHour = (nowNextHour < 10) ? "0" + nowNextHour : nowNextHour;
+nowMinuts = (nowMinuts < 10) ? "0" + nowMinuts : nowMinuts;
+%>
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8"/>
+    <title>Application PLV de l'Université de Cergy-Pontoise</title>
+    <link rel="stylesheet" href="/CSS/diaporama.css">
+</head>
+
+<body id='newSlide'>
+
+<%
+if (typeof informationMessage !== 'undefined')
+{
+if(informationMessage != null)
+{
+%>
+<div class="instantMessage"><%= informationMessage %></div>
+<%
+}
+}
+%>
+
+<%
+if (typeof login == 'undefined' || login == null) {
+    login = "Visiteur"
+}
+%>
+
+<div id="createSlideForm">
+    <form action="/newSlide" method="post" enctype="multipart/form-data" id='formNewSlide'>
+
+        <div class="input">
+            <label for="slideTitle">Titre</label>
+            <input type="text" name='slideTitle' id='slideTitle' placeholder="Titre de votre slide" pattern=".{3,}"
+                   title="Le titre doit faire au moins trois caractères" required>
+        </div>
+        <!--Titre-->
+
+        <div class="input">
+            <label for="slideType">Type de slide </label>
+            <select name="slideType" id="slideType" required>
+                <option value="text">Uniquement texte</option>
+                <option value="textimage">Texte et image</option>
+                <option value="image">Uniquement image</option>
+                <option value="planning" selected>Planning</option>
+                <!--<option value="video">Uniquement video</option>-->
+            </select>
+        </div>
+        <!--Type-->
+
+        <div class="input">
+            <label for="slideImportance">Importance </label>
+            <select name="slideImportance" id="slideImportance" required>
+                <option value="infoRapide" selected>News rapide</option>
+                <option value="infoSimple">Simple information</option>
+                <option value="infoImportante">Information importante</option>
+                <option value="infoUrgente">Information urgente</option>
+            </select>
+
+            <div class="info" id="infoTypeImportante">Les informations de type importantes passeront aussi sur le
+                bandeau de défilement de texte, dans ce bandeau seul le texte défile.
+            </div>
+            <div class="info" id="infoTypeUrgente">Les informations urgentes passeront aussi sur le bandeau de
+                défilement de texte, dans ce bandeau seul le texte défile. Dans la zone diaporama, le slide urgent
+                profitera d'un clignotement régulier.
+            </div>
+        </div>
+        <!--Importance-->
+
+        <div class="input">
+            <label for="slideAudience">Audience </label>
+            <select name="slideAudience" id="slideAudience" required>
+            </select>
+        </div>
+        <!--Audience-->
+
+        <div class="input">
+            <label for="startDate">Date d'apparition </label>
+
+            <div class="dateInput">
+                <input id="useStartDate" class="optionnalFunction" name="useStartDate" type="checkbox"/>
+                <input type="datetime-local" name="startDate" id="startDate" max="<%= nowTenYear %>-12-31T23:59"
+                       min="<%= nowYear + '-' + nowMonth + '-' + nowDay + 'T' + nowHour + ':' + nowMinuts %>"
+                       value="<%= nowYear + '-' + nowMonth + '-' + nowDay + 'T' + nowHour + ':' + nowMinuts %>" required
+                       pattern="(?:19|20)[0-9]{2}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1[0-9]|2[0-9])|(?:(?!02)(?:0[1-9]|1[0-2])-(?:30))|(?:(?:0[13578]|1[02])-31))T(0[0-9]|1[0-9]|2[0-3])(:[0-5][0-9])">
+                <span class='error' id="invalid_startDate"></span>
+            </div>
+        </div>
+        <!--Date apparition-->
+
+        <div class="input">
+            <label for="endDate">Date d'expiration </label>
+
+            <div class="dateInput">
+                <input id="useEndDate" class="optionnalFunction" name="useEndDate" type="checkbox"/>
+                <input type="datetime-local" name="endDate" id="endDate" max="<%= nowTenYear %>-12-31T23:59"
+                       min="<%= nowYear + '-' + nowMonth + '-' + nowDay + 'T' + nowNextHour + ':' + nowMinuts %>"
+                       value="<%= nowYear + '-' + nowMonth + '-' + nowNextDay + 'T' + nowHour + ':' + nowMinuts %>"
+                       required
+                       pattern="(?:19|20)[0-9]{2}-(?:(?:0[1-9]|1[0-2])-(?:0[1-9]|1[0-9]|2[0-9])|(?:(?!02)(?:0[1-9]|1[0-2])-(?:30))|(?:(?:0[13578]|1[02])-31))T(0[0-9]|1[0-9]|2[0-3])(:[0-5][0-9])">
+                <span class='error' id="invalid_endDate"></span>
+                <span class='error' id="posterieur_endDate"></span>
+            </div>
+        </div>
+        <!--Date expiration-->
+
+        <div class="input" id="slideText_balise">
+            <label>Texte principale</label>
+            <textarea name="slideText" id="slideText" cols="50" rows="5" pattern=".{1,50000}"
+                      title="Ce texte doit posséder entre 1 et 50 000 caractères."
+                      placeholder="Texte principale. Vous pouvez augmenter la taille de cette zone de texte. Cliquez en bas à droite et glissez. Vous pouvez écrire au maximum 50 000 caractères."></textarea>
+
+            <div class="info" id="limitSizeText" style="display: none">Vous avez depassé la limite de 50 000 caractères.
+                Le slide pourrait mal s'afficher.
+            </div>
+        </div>
+        <!--Texte-->
+
+        <div class="input" id="slideImage_balise">
+            <label>Image</label>
+            <input type="file" value="Choisir une image" name="slideImage" id="slideImage">
+        </div>
+        <!--Image-->
+
+        <div class="input" id="slideVideo_balise">
+            <label>Video</label>
+            <input type="file" value="Choisir une video" name="slideVideo" id="slideVideo">
+        </div>
+        <!--Video -- SOON  -->
+
+        <!--Planning Content-->
+        <div class="input" id="slidePlanningContent_balise">
+            <label>Contenu du planning</label>
+            <input type="button" id="addOneLineOfScheduling" class="beautifulButton" value="Ajouter"/>
+            <input type="button" id="deleteLastLineOfScheduling" class="beautifulButton" value="Supprimer"/>
+
+            <div class="scheduling">
+                <input type="text" name="nameSchedule[]" class="nameSchedule" placeholder="Nom de l'événement"/>
+                <input type="date" name="dateSchedule[]" class="dateSchedule"/>
+            <textarea name="furtherInfosSchedule[]" class="furtherInfosSchedule" cols="50" rows="5" pattern=".{1,1000}"
+                      title="Ce texte doit posséder entre 1 et 1000 caractères."
+                      placeholder="Informations complémentaires. Vous pouvez augmenter la taille de cette zone de texte. Cliquez en bas à droite et glissez. Vous pouvez écrire au maximum 1000 caractères."></textarea>
+            </div>
+        </div>
+
+        <div class="submit">
+            <label for="submit">Valider</label>
+            <input type="submit" id="submit">
+        </div>
+    </form>
+</div>
+
+<div id="containerPreviewSlide">
+    <div id="previewSlide" class="slide slideText darkblue">
+        <div class="top">Titre</div>
+        <div class="content">
+            <img src="/IMG-VID/previewslideimage.png" alt="Image d'exemple pour la prévisualisation d'un slide">
+
+            <p>Texte</p>
+        </div>
+    </div>
+</div>
+
+
+<div class="bottom">
+    <nav>
+        <div class="menuButton">
+            <div class="line"></div>
+            <div class="line"></div>
+            <div class="line"></div>
+        </div>
+        <ul>
+            <li><a href="/logout">Fermer Session</a></li>
+            <li><a href="/diaporama">Retour page diaporama</a></li>
+        </ul>
+    </nav>
+    <div class="centerTitle">
+        Page de création d'un slide
+    </div>
+    <div class="infos">
+        <div id="actualDate"></div>
+        <div id="userName"><%= login %></div>
+    </div>
+</div>
+
+
+<script src="/socket.io/socket.io.js"></script>
+<script src='/JS/common.js'></script>
+<script type="text/javascript">
+    var infoImportante = document.getElementById('infoTypeImportante');
+    var infoUrgente = document.getElementById('infoTypeUrgente');
+    var limitSizeText = document.getElementById('limitSizeText');
+    var slideAudience = document.getElementById("slideAudience");
+    var slideTitle = document.getElementById('slideTitle');
+    var slideType = document.getElementById('slideType');
+    var slideText = document.getElementById('slideText');
+    var slideText_balise = document.getElementById('slideText_balise');
+    var slideImage = document.getElementById('slideImage');
+    var slideImage_balise = document.getElementById('slideImage_balise');
+    var slideVideo = document.getElementById('slideVideo');
+    var slideVideo_balise = document.getElementById('slideVideo_balise');
+    var containerPreviewSlide = document.getElementById("containerPreviewSlide");
+    var slideImportance = document.getElementById("slideImportance");
+
+
+    var startDate = document.getElementById('startDate');
+    var endDate = document.getElementById('endDate');
+    var useStartDate = document.getElementById('useStartDate');
+    var useEndDate = document.getElementById('useEndDate');
+
+    var invalid_startDate = document.getElementById('invalid_startDate');
+    var invalid_endDate = document.getElementById('invalid_endDate');
+    var posterieur_endDate = document.getElementById('posterieur_endDate');
+    /// PLANNING
+    var slidePlanningContent_balise = document.getElementById('slidePlanningContent_balise');
+    var addOneLineOfScheduling = document.getElementById('addOneLineOfScheduling');
+    var deleteLastLineOfScheduling = document.getElementById('deleteLastLineOfScheduling');
+    var planificationObjects = [];
+
+
+    var addOneLineOfSchedulingAction = function () {
+        var newChild = createSchedulingElement();
+        slidePlanningContent_balise.appendChild(newChild);
+        updatePlanificationObjects();
+        updatePreviewSlide();
+    };
+    var deleteLastLineOfSchedulingAction = function () {
+        var p = document.getElementsByClassName('scheduling');
+        if (p.length > 0) {
+            p[0].parentNode.removeChild(p[p.length - 1]);
+        }
+        updatePlanificationObjects();
+        updatePreviewSlide();
+    };
+    addOneLineOfScheduling.addEventListener('click', addOneLineOfSchedulingAction);
+    deleteLastLineOfScheduling.addEventListener('click', deleteLastLineOfSchedulingAction);
+    var updatePlanificationObjects = function () {
+        planificationObjects = [];
+        var p = document.getElementsByClassName('scheduling');
+        for (var i = 0; i < p.length; i++) {
+            var dateSchedule = p[i].getElementsByClassName('dateSchedule')[0].value;
+            var nameSchedule = p[i].getElementsByClassName('nameSchedule')[0].value;
+            var furtherInfosSchedule = p[i].getElementsByClassName('furtherInfosSchedule')[0].value;
+            planificationObjects.push({
+                date: dateSchedule,
+                name: nameSchedule,
+                further: furtherInfosSchedule
+            });
+        }
+        console.log(planificationObjects);
+    };
+
+    slideTitle.onkeyup = updatePreviewSlide;
+    slideText.onkeyup = updatePreviewSlide;
+    slideText.oninput = function () {
+        var nbChar = this.value.length;
+        console.log(nbChar);
+        if (nbChar > 50000) {
+            limitSizeText.style.display = "block";
+        }
+        else {
+            limitSizeText.style.display = "none";
+        }
+    };
+    slideAudience.onchange = updatePreviewSlide;
+    slideImportance.onchange = updatePreviewSlide;
+    startDate.onchange = dateVerification;
+    endDate.onchange = dateVerification;
+    startDate.onkeyup = dateVerification;
+    endDate.onkeyup = dateVerification;
+
+    slideType.onchange = function () {
+        typeSlideChangeForm();
+        updatePlanificationObjects();
+        updatePreviewSlide();
+    };
+    typeSlideChangeForm();
+    updatePlanificationObjects();
+    updatePreviewSlide();
+
+    var socket = io.connect('http://localhost:5858');
+    socket.emit('getAllAudiences');
+    socket.on('reply_getAllAudiences', function (datas) {
+        for (var i = datas.length - 1; i >= 0; i--) {
+            var el = document.createElement("option");
+            el.setAttribute("value", datas[i]["id"]);
+            el.appendChild(document.createTextNode(datas[i]["intitule"]));
+            slideAudience.appendChild(el);
+        }
+    });
+    function typeSlideChangeForm() {
+        slideText_balise.style.display = 'none';
+        slideImage_balise.style.display = 'none';
+        slideVideo_balise.style.display = 'none';
+        slidePlanningContent_balise.style.display = 'none';
+
+        slideText.removeAttribute('required');
+        slideImage.removeAttribute('required');
+        slideVideo.removeAttribute('required');
+
+        var displayStyle = 'block';
+        var slideTypeValue = slideType.value;
+        switch (slideTypeValue) {
+            case 'text':
+                slideText_balise.style.display = displayStyle;
+                slideText.setAttribute('required', 'required');
+                break;
+            case 'textimage':
+                slideText_balise.style.display = displayStyle;
+                slideImage_balise.style.display = displayStyle;
+                slideText.setAttribute('required', 'required');
+                slideImage.setAttribute('required', 'required');
+                break;
+            case 'image':
+                slideImage_balise.style.display = displayStyle;
+                slideImage.setAttribute('required', 'required');
+                break;
+            case 'video':
+                slideVideo_balise.style.display = displayStyle;
+                slideVideo.setAttribute('required', 'required');
+                break;
+            case 'planning':
+                slidePlanningContent_balise.style.display = displayStyle;
+                break;
+            default:
+                console.warn("Please work for the " + slideTypeValue + " slide !");
+        }
+    }
+
+    function updatePreviewSlide() {
+        var type = (slideType.value === "" || slideType.value === "video") ? " " : slideType.value;
+        var text = (slideText.value == "") ? "Texte" : slideText.value;
+        var title = (slideTitle.value == "") ? "Titre" : slideTitle.value;
+        var importance = slideImportance.value;
+        var startDateValue = getStartDate();
+        var endDateValue = getEndDate();
+
+        switch (importance) {
+            case 'infoImportante':
+                infoImportante.style.display = "block";
+                infoUrgente.style.display = "none";
+                break;
+            case 'infoUrgente':
+                infoImportante.style.display = "none";
+                infoUrgente.style.display = "block";
+                break;
+            default:
+                infoImportante.style.display = "none";
+                infoUrgente.style.display = "none";
+                break;
+        }
+
+        var previewSlide = {
+            id: -1,
+            type: type,
+            titre: title,
+            texte: text,
+            image_url: "previewslideimage.png",
+            video_url: "",
+            importance: importance,
+            date_debut: startDateValue.split("T")[0],
+            time_debut: startDateValue.split("T")[1],
+            date_fin: endDateValue.split("T")[0],
+            time_fin: endDateValue.split("T")[1],
+            planifications: planificationObjects
+        };
+
+        var s = createSlide(previewSlide, false, true);
+        if (s) {
+            s.setAttribute("id", "previewSlide");
+            while (containerPreviewSlide.firstChild)
+                containerPreviewSlide.removeChild(containerPreviewSlide.firstChild);
+
+            containerPreviewSlide.appendChild(s);
+        }
+    }
+    function getStartDate() {
+        // If the user don't want to specify the start date, let's say it will
+        // start now
+        if (useStartDate.checked) {
+            return (startDate.value === "") ? " " : startDate.value;
+        } else {
+            return ((new Date()).toISOString()).substring(0, 16);
+        }
+    }
+    function getEndDate() {
+        // If the user don't want to specify the end date, let's say it will
+        // expire 10 years later
+        if (useEndDate.checked) {
+            return (endDate.value === "") ? " " : endDate.value;
+        } else {
+            var curDate = new Date();
+            curDate.setYear(curDate.getYear() + 10);
+            return curDate.toISOString().substring(0, 16);
+        }
+    }
+    function dateVerification() {
+        updatePreviewSlide();
+        var startDateValue = getStartDate();
+        endDate.setAttribute('min', startDateValue);
+        var endDateValue = getEndDate();
+        /*var startDateSplitted = startDateValue.split("T");
+         var endDateSplitted = endDateValue.split("T");*/
+
+        var startDate_valid = valideDate(new Date(startDateValue));
+        var endDate_valid = valideDate(new Date(endDateValue));
+
+        var endPosterieurStart = datePosterieur(new Date(startDateValue), new Date(endDateValue));
+
+        if (startDate_valid == false) {
+            if (invalid_startDate.hasChildNodes() == false)
+                invalid_startDate.appendChild(document.createTextNode("Cette date n'est pas valide."));
+        } else if (invalid_startDate.hasChildNodes()) {
+            invalid_startDate.removeChild(invalid_startDate.firstChild);
+        }
+
+        if (endDate_valid == false) {
+            if (!invalid_endDate.hasChildNodes())
+                invalid_endDate.appendChild(document.createTextNode("Cette date n'est pas valide."));
+        } else if (invalid_endDate.hasChildNodes()) {
+            invalid_endDate.removeChild(invalid_endDate.firstChild);
+        }
+
+        if (endPosterieurStart == false) {
+            if (!posterieur_endDate.hasChildNodes())
+                posterieur_endDate.appendChild(document.createTextNode("La date d'expiration n'est pas posterieure à la date d'apparition."));
+        } else {
+            if (posterieur_endDate.hasChildNodes())
+                posterieur_endDate.removeChild(posterieur_endDate.firstChild);
+        }
+    }
+    function datePosterieur(startDateValue, endDateValue) {
+        return endDateValue.getTime() > startDateValue.getTime();
+    }
+    function valideDate(d) {
+        if (Object.prototype.toString.call(d) === "[object Date]") {
+            if (isNaN(d.getTime())) { // d.valueOf() could also work
+                return false;
+            } else {
+                return true;
+            }
+        } else {
+            return false;
+        }
+    }
+</script>
+
+</body>
+
+</html>
