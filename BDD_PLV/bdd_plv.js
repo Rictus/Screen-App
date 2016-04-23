@@ -1,21 +1,32 @@
 exports.getSlides = function (connexionBDD, idAudience, callback) {
-    if (idAudience == 0) {
-        var req = "SELECT	`id`, `titre`, `type`, `date_debut`, `date_fin`, `time_debut`, `time_fin`, `importance`, `audience`, `texte`, `image_url`, `video_url`, `id_user`, `supprime`  FROM	`slide` WHERE 	(TO_DAYS(`date_debut`)*3600*24)+TIME_TO_SEC(`time_debut`)	<=	(TO_DAYS(NOW())*3600*24)+TIME_TO_SEC(NOW()) AND		(TO_DAYS(`date_fin`)  *3600*24)+TIME_TO_SEC(`time_fin`)		>	(TO_DAYS(NOW())*3600*24)+TIME_TO_SEC(NOW()) AND supprime='false'";
-        connexionBDD.query(req, function (err, rows, fields) {
-            if (err) throw err;
-            else
-                callback(rows);
-        });
+    var sqlGetSlides =
+        "SELECT * FROM `slide` " +
+        "WHERE (TO_DAYS(`date_debut`)*3600*24)+TIME_TO_SEC(`time_debut`) <= (TO_DAYS(NOW())*3600*24)+TIME_TO_SEC(NOW()) " +
+        "AND (TO_DAYS(`date_fin`)  *3600*24)+TIME_TO_SEC(`time_fin`) > (TO_DAYS(NOW())*3600*24)+TIME_TO_SEC(NOW()) " +
+        "AND supprime='false' "; //TODO add order by ?
+    var sqlGetSlidesParams = [];
+    var sqlGetPlanningsParams = [];
+    if (idAudience != 0) {
+        sqlGetSlides += " AND (audience=? OR audience=0) ";
+        sqlGetSlidesParams.push(idAudience);
+        sqlGetPlanningsParams.push(idAudience);
     }
-    else {
-        var req = "SELECT	`id`, `titre`, `type`, `date_debut`, `date_fin`, `time_debut`, `time_fin`, `importance`, `audience`, `texte`, `image_url`, `video_url`, `id_user`, `supprime`  FROM	`slide` WHERE 	(TO_DAYS(`date_debut`)*3600*24)+TIME_TO_SEC(`time_debut`)	<=	(TO_DAYS(NOW())*3600*24)+TIME_TO_SEC(NOW()) AND		(TO_DAYS(`date_fin`)  *3600*24)+TIME_TO_SEC(`time_fin`)		>	(TO_DAYS(NOW())*3600*24)+TIME_TO_SEC(NOW()) AND (audience=? OR audience=0) AND supprime='false'";
-        connexionBDD.query(req, [idAudience], function (err, rows, fields) {
-            if (err) throw err;
-            else
-                callback(rows);
-        });
-    }
-}
+
+    var sqlGetPlannings =
+        "SELECT p.Title_Pla as titre, p.Date_Pla as  date, p.Fur_Pla as further, p.IdtSli_Pla " +
+        " FROM planifications p " +
+        " INNER JOIN (" + sqlGetSlides + ") as s ON p.IdtSli_Pla = s.id ";
+
+    connexionBDD.query(sqlGetSlides, sqlGetSlidesParams, function (err, slidesRows, slidesFields) {
+        if (err) throw err;
+        else {console.log(sqlGetPlannings);
+            connexionBDD.query(sqlGetPlannings, sqlGetPlanningsParams, function (err, planningsRows, planningsFields) {
+                if (err) throw err;
+                else callback(slidesRows, planningsRows);
+            });
+        }
+    });
+};
 
 exports.getAllAudiences = function (connexionBDD, callback) {
     connexionBDD.query('SELECT id, intitule FROM audience', function (err, rows, fields) {
@@ -23,7 +34,7 @@ exports.getAllAudiences = function (connexionBDD, callback) {
         else
             callback(rows);
     });
-}
+};
 
 
 /**
@@ -133,24 +144,34 @@ exports.inscription = function (connexionBDD, login, password, onSucceed) {
         }
     });
     if (onSucceed != undefined) onSucceed();
-}
+};
 
-exports.insertSlide = function (connexionBDD, slideTitle, slideType, startDate, startTime, endDate, endTime, slideImportance, slideAudience, slideText, imageUrl, videoUrl, idUser, callback) {
+exports.insertSlide = function (connexionBDD, slideTitle, slideType, startDate, startTime, endDate, endTime,
+                                slideImportance, slideAudience, slideText, imageUrl, videoUrl, plannings, idUser, callback) {
     var nullvalue = "null";
     if (slideType === 'text') {
         imageUrl = nullvalue;
         videoUrl = nullvalue;
+        plannings = nullvalue;
     }
     else if (slideType === 'textimage') {
         videoUrl = nullvalue;
+        plannings = nullvalue;
     }
     else if (slideType === 'image') {
         slideText = nullvalue;
         videoUrl = nullvalue;
+        plannings = nullvalue;
     }
     else if (slideType === 'video') {
         imageUrl = nullvalue;
         slideText = nullvalue;
+        plannings = nullvalue;
+    }
+    else if (slideType === 'planning') {
+        imageUrl = nullvalue;
+        slideText = nullvalue;
+        videoUrl = nullvalue;
     }
 
     connexionBDD.query('INSERT INTO `slide`(`titre`, `type`, `date_debut`, `time_debut`, `date_fin`, `time_fin`, `importance`, `audience`, `texte`, `image_url`, `video_url`, `id_user`)  VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
@@ -160,8 +181,30 @@ exports.insertSlide = function (connexionBDD, slideTitle, slideType, startDate, 
                 callback(results["insertId"]);
             }
         });
-}
+};
 
+exports.insertPlannings = function (connexionBDD, plannings, Idt_Sli, callback) {
+    if (typeof plannings === "object" && typeof plannings.length !== "number") {
+        plannings = [plannings];
+    }
+    var planning;
+    var sqlInsertQuery = 'INSERT INTO `planifications`(`Title_Pla`, `Date_Pla`, `Fur_Pla`, `IdtSli_Pla`) VALUES ';
+    var sqlInsertQueryParams = [];
+    for (var i = 0; i < plannings.length; i++) {
+        planning = plannings[i];
+        sqlInsertQuery += '(?,?,?,?),';
+        sqlInsertQueryParams.push(planning.name, planning.date, planning.further, Idt_Sli);
+    }
+    sqlInsertQuery = sqlInsertQuery.substr(0, sqlInsertQuery.length - 1); //remove trailing comma
+    console.log(sqlInsertQuery);
+    connexionBDD.query(sqlInsertQuery, sqlInsertQueryParams, function (err, results) {
+        if (err) throw err;
+        else {
+            console.log(results);
+            callback();
+        }
+    });
+};
 
 exports.createAudience = function (connexionBDD, intitule, onSucceed) {
     connexionBDD.query('INSERT INTO `audience`(`intitule`) VALUES (?)', [intitule], function (err, result) {

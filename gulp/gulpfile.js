@@ -16,7 +16,7 @@ var megaConf = {
         module: gulpCss,
         dev: {
             active: true,
-            streamCss: true,
+            streamCss: false,
             watchPath: "../public/CSS/**/*.less",
             destPath: "../public/CSS/",
             concat: true,
@@ -28,11 +28,11 @@ var megaConf = {
         }
     },
     js: {
-        active: true,
+        active: false,
         module: gulpJs,
         dev: {
-            active: true,
-            streamJs: true,
+            active: false,
+            streamJs: false,
             watchPath: "../public/JS/**/*.js",
             destPath: "../public/JS/",
             concat: true,
@@ -54,7 +54,7 @@ var megaConf = {
         module: gulpHtml,
         dev: {
             active: false,
-            streamHTML: true,
+            streamHTML: false,
             watchPath: "../dev/*.html",
             destPath: "../dev-public/",
             minify: false

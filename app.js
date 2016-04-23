@@ -266,26 +266,45 @@ app.post('/inscription', function (req, res) {
 
 app.post('/newSlide', function (req, res) { //INSERTION D'UN NOUVEAU SLIDE
 
+    console.log("");
+    console.log(req.body);
+    console.log("");
     var slideTitle = req.body.slideTitle;
     var slideType = req.body.slideType;
     var startDate = req.body.startDate;
-    var useStartDate = req.body.useStartDate;
-    var useEndDate = req.body.useEndDate;
-    console.log(useEndDate + " " + useEndDate);
+    var useStartDate = !!req.body.useStartDate;
+    var useEndDate = !!req.body.useEndDate;
     var endDate = req.body.endDate;
     var slideImportance = req.body.slideImportance;
     var slideAudience = req.body.slideAudience;
     var slideText = (slideType == 'textimage' || slideType == 'text') ? req.body.slideText : "";
     var slideImage = (slideType == 'textimage' || slideType == 'image') ? ((req.files.slideImage) ? req.files.slideImage.name : "null") : "null";
     var slideVideo = (slideType == 'video') ? ((req.files.slideVideo) ? req.files.slideVideo.name : "null") : "null";
+    var slidePlannings = [];
+    var schedulesNames = req.body.nameSchedule;
+    var schedulesDates = req.body.dateSchedule;
+    var schedulesFurtherInfos = req.body.furtherInfosSchedule;
 
     if ((slideType == 'textimage' || slideType == 'image') && slideImage == "null") {
         req.session.informationMessage = "Le slide n'a pas pu être créée. L'image n'en était pas une ou était trop lourde.";
     }
-    if ((slideType == 'video') && slideVideo == "null") {
+    else if ((slideType == 'video') && slideVideo == "null") {
         req.session.informationMessage = "Le slide n'a pas pu être créée. La vidéo n'en était pas une ou était trop lourde.";
     }
-    else {
+    else if (slideType == "planning" && !(schedulesDates && schedulesFurtherInfos && schedulesNames && schedulesDates.length == schedulesNames.length == schedulesFurtherInfos.length)) {
+        req.session.informationMessage = "Toutes les informations doivent être complétés pour créer un slide de planning.";
+    } else {
+        if (schedulesNames) {
+            for (var i = 0; i < schedulesNames.length; i++) {
+                slidePlannings.push({
+                    name: schedulesNames[i],
+                    date: schedulesDates[i],
+                    further: schedulesFurtherInfos[i]
+                });
+            }
+        }
+    }
+    if (!req.session.informationMessage) {
         var slideInsertionSucceed = function (id) {
             if (id >= 0) {
                 io.sockets.emit('newSlideInserted', {
@@ -300,13 +319,25 @@ app.post('/newSlide', function (req, res) { //INSERTION D'UN NOUVEAU SLIDE
                     audience: slideAudience,
                     texte: slideText,
                     image_url: slideImage,
-                    video_url: slideVideo
+                    video_url: slideVideo,
+                    plannings: slidePlannings
                 });
             }
         };
 
+        if (!useStartDate) {
+            // If the user don't want to specify the start date, let's say it will start asap
+            startDate = ((new Date()).toISOString()).substring(0, 16);
+        }
+        if (!useEndDate) {
+            // If the user don't want to specify the end date, let's say it will expire in 10 years later
+            var curDate = new Date();
+            curDate.setYear(curDate.getYear() + 10);
+            endDate = curDate.toISOString().substring(0, 16);
+        }
         //Vérification du format de la date et verification que les autres champs ont bien une valeur
-        if (dateRegexPattern.test(startDate) && dateRegexPattern.test(endDate) && slideTitle != undefined && slideType != undefined && slideImportance != undefined && slideAudience != undefined && slideText != undefined) {
+        if (dateRegexPattern.test(startDate) && dateRegexPattern.test(endDate) && slideTitle != undefined &&
+            slideType != undefined && slideImportance != undefined && slideAudience != undefined) {
             startDate = startDate.split("T");
             var startTime = startDate[1];
             startDate = startDate[0];
@@ -314,12 +345,21 @@ app.post('/newSlide', function (req, res) { //INSERTION D'UN NOUVEAU SLIDE
             var endTime = endDate[1];
             endDate = endDate[0];
 
-            bdd_plv.insertSlide(connexionBDD, slideTitle, slideType, startDate, startTime, endDate, endTime, slideImportance, slideAudience, slideText, slideImage, slideVideo, req.session.idUser, slideInsertionSucceed);
-            console.log(req.session.login + " a cree un nouveau slide.");
+            var onSuccessInsertSlide = function (slideId) {
+                if (slideType === 'planning') {
+                    bdd_plv.insertPlannings(connexionBDD, slidePlannings, slideId, function () {
+                        slideInsertionSucceed(slideId);
+                    });
+                } else {
+                    slideInsertionSucceed(slideId);
+                }
+            };
+            bdd_plv.insertSlide(connexionBDD, slideTitle, slideType, startDate, startTime, endDate, endTime,
+                slideImportance, slideAudience, slideText, slideImage, slideVideo, slidePlannings, req.session.idUser, onSuccessInsertSlide);
+            console.log(req.session.login + " a cree un nouveau slide de type " + slideType);
         }
         else {
-            console.log(dateRegexPattern.test(startDate) + "  " + dateRegexPattern.test(endDate));
-
+            console.log("err : " + dateRegexPattern.test(startDate) + "  " + dateRegexPattern.test(endDate));
         }
     }
     res.redirect('./diaporama');
@@ -391,8 +431,8 @@ io.sockets.on('connection', function (socket) { //Connexion du socket
         socket.emit('reply_getConfig', {config: config.diaporamaConfig}); //On envoi que la configuration du diaporama
     });
     socket.on('getSlides', function (data) {
-        bdd_plv.getSlides(connexionBDD, data["audience"], function (res) {
-            socket.emit('reply_getSlides', res);
+        bdd_plv.getSlides(connexionBDD, data["audience"], function (slides, plannings) {
+            socket.emit('reply_getSlides', {slides: slides, plannings: plannings});
         });
     });
 

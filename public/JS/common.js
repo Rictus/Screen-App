@@ -146,7 +146,7 @@ String.prototype.splice = function (idx, rem, s) {
 
 /**** CREATION DE SLIDES ****/
 function createSlide(slide, isAnimated, isPreview) {
-    //id type titre texte image_url video_url importance date_debut  time_debut date_fin  time_fin
+    //id type titre texte image_url video_url importance date_debut  time_debut date_fin  time_fin plannings
     var s;
     var pathToDir = "/UserPictures/";
     var preview = (isPreview) ? true : false;
@@ -156,7 +156,7 @@ function createSlide(slide, isAnimated, isPreview) {
         s = createTextSlide(slide.titre, slide.texte);
     }
     else if (slide.type === 'planning') {
-        s = createPlanningSlide(slide.titre, slide.planifications);
+        s = createPlanningSlide(slide.titre, slide.plannings);
     }
     else if (slide.image_url !== null) {
         if (slide.type === 'textimage') {
@@ -171,32 +171,34 @@ function createSlide(slide, isAnimated, isPreview) {
     else {
         return null;
     }
-    if (isAnimated)
-        s.classList.add("appear");
+    if (s) {
+        if (isAnimated)
+            s.classList.add("appear");
 
-    //Ajout de l'attribut id
-    s.setAttribute('idslide', slide.id);
-    //Ajout de l'importance
-    s.setAttribute('importanceslide', slide.importance);
-    //Ajout de la class couleur en fonction de l'importance du slide
-    s.classList.add(getColorByImportance(slide.importance));
-    //Ajout du bouton de suppression
-    var supButton = createCompleteElement('a', [['class', 'deleteButton'], ['href', '#']]);
-    supButton.addEventListener('click', function () {
-        var alertBox = genAlertBox("Suppression d'un slide", "Voulez-vous vraiment supprimer ce slide ?", "Si oui, il sera supprimé de cet écran mais aussi de tous les autres écrans.", function () {
-            window.location.href = "/deleteSlide/" + slide.id;
-        }, function () {
-            alertBox.parentNode.removeChild(alertBox);
+        //Ajout de l'attribut id
+        s.setAttribute('idslide', slide.id);
+        //Ajout de l'importance
+        s.setAttribute('importanceslide', slide.importance);
+        //Ajout de la class couleur en fonction de l'importance du slide
+        s.classList.add(getColorByImportance(slide.importance));
+        //Ajout du bouton de suppression
+        var supButton = createCompleteElement('a', [['class', 'deleteButton'], ['href', '#']]);
+        supButton.addEventListener('click', function () {
+            var alertBox = genAlertBox("Suppression d'un slide", "Voulez-vous vraiment supprimer ce slide ?", "Si oui, il sera supprimé de cet écran mais aussi de tous les autres écrans.", function () {
+                window.location.href = "/deleteSlide/" + slide.id;
+            }, function () {
+                alertBox.parentNode.removeChild(alertBox);
+            });
+            (document.getElementsByTagName('body')[0]).appendChild(alertBox);
         });
-        (document.getElementsByTagName('body')[0]).appendChild(alertBox);
-    });
-    (s.getElementsByClassName('top')[0]).appendChild(supButton);
+        (s.getElementsByClassName('top')[0]).appendChild(supButton);
 
-    //Ajout de la date de commencement et d'expiration en tant qu'attributs
-    s.setAttribute("startDate", slide.date_debut + "T" + slide.time_debut);
-    s.setAttribute("endDate", slide.date_fin + "T" + slide.time_fin);
+        //Ajout de la date de commencement et d'expiration en tant qu'attributs
+        s.setAttribute("startDate", slide.date_debut + "T" + slide.time_debut);
+        s.setAttribute("endDate", slide.date_fin + "T" + slide.time_fin);
 
-    return s;
+        return s;
+    }
 }
 
 function createTextSlide(titre, texte) {
@@ -277,6 +279,8 @@ function createImageSlide(titre, imageURL) {
 }
 
 function createPlanningSlide(titre, planning) {
+    console.log(titre);
+    console.log(planning);
     planning = typeof planning.length === "number" ? planning : [planning];
     var allPlanningsElements = [];
 
@@ -295,9 +299,9 @@ function createPlanningSlide(titre, planning) {
     for (var i = 0; i < planning.length; i++) {
         var scheduleContent = createCompleteElement('div', [['class', 'scheduleContent']]);
         var firstLineContainer = createCompleteElement('div');
-        var scheduleDate = createCompleteElement('div', [['class', 'scheduleDate']], "Dimanche 16 avril : ");
-        var scheduleName = createCompleteElement('div', [['class', 'scheduleName']], "salon du livre");
-        var scheduleFurtherInfos = createCompleteElement('div', [['class', 'scheduleFurtherInformations']], 'Informations complémentaires');
+        var scheduleDate = createCompleteElement('div', [['class', 'scheduleDate']], planning[i].date);
+        var scheduleName = createCompleteElement('div', [['class', 'scheduleName']], planning[i].name);
+        var scheduleFurtherInfos = createCompleteElement('div', [['class', 'scheduleFurtherInformations']], planning[i].further);
         firstLineContainer.appendChild(scheduleDate);
         firstLineContainer.appendChild(scheduleName);
         scheduleContent.appendChild(firstLineContainer);
@@ -344,7 +348,8 @@ function insertSlideInContainer(slide) {
             nbSlideSecondColumn++;
         }
         else {//Sinon on insère de sorte à avoir la même hauteur des deux côtés
-            /** TODO Problème identifié, les images arrivent souvent après le placement des balises et donc cela fausse le calcul des hauteurs. Solution : Initialiser la hauteur des balises en fonction de la taille des images */
+            /** TODO Problème identifié, les images arrivent souvent après le placement des balises et donc cela fausse
+             * TODO le calcul des hauteurs. Solution : Initialiser la hauteur des balises en fonction de la taille des images */
             var offsetLastElemFirstCol = offset(firstColumn.lastChild);
             var offsetLastElemSecCol = offset(secondColumn.lastChild);
             if (offsetLastElemFirstCol.bottom <= offsetLastElemSecCol.bottom) {
@@ -633,4 +638,25 @@ function getCurrentUrl() {
     var arrayURL = document.location.href.split('/');
     var currentURL = arrayURL[0] + "/" + arrayURL[1] + "/" + arrayURL[2];
     return currentURL;
+}
+
+
+function associateSlideWithPlannings(slides, plannings) {
+    var outObj = [];
+    for (var s = 0; s < slides.length; s++) {
+        var slide = slides[s];
+        if (slide.type == "planning") {
+            //Search all plannings associated to this slide
+            slide.plannings = [];
+            for (var p = 0; p < plannings.length; p++) {
+                var planning = plannings[p];
+                if (slide.id == planning.IdtSli_Pla) {
+                    slide.plannings.push(planning);
+                }
+            }
+        }
+        outObj.push(slide);
+    }
+    console.log(outObj);
+    return outObj;
 }

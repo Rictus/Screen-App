@@ -177,7 +177,7 @@ if (typeof login == 'undefined' || login == null) {
                             var id = this.getAttribute("href");
                             this.setAttribute("href", "#");
                             document.body.removeChild(topWindow);
-							console.log("selected audience : "+id);
+                            console.log("selected audience : " + id);
                             EraseAndLoadSlides(id);
                             selectedAudience = id;
                         });
@@ -256,11 +256,14 @@ if (typeof login == 'undefined' || login == null) {
             highlightInterval = window.setInterval(window.setInterval(highlightIntervalFunction, data["config"].timeBetweenEachHighLight));
         });
 
-        socket.on('reply_getSlides', function (rows) {
-            console.log('Ajout de %s slides.', rows.length);
-            for (var i = 0; i < rows.length; i++) {
-                addToTextStream(rows[i]);
-                var s = createSlide(rows[i], false);
+        socket.on('reply_getSlides', function (data) {
+            console.log("Reception de %s slides", data.length);
+            console.log(data);
+            var slides = associateSlideWithPlannings(data.slides, data.plannings);
+            console.log(slides);
+            for (var i = 0; i < slides.length; i++) {
+                addToTextStream(slides[i]);
+                var s = createSlide(slides[i], false);
                 if (s) {
                     insertSlideInContainer(s);
                 }
@@ -283,7 +286,8 @@ if (typeof login == 'undefined' || login == null) {
                     date_debut: newSlide["startDate"],
                     time_debut: newSlide["startTime"],
                     date_fin: newSlide["endDate"],
-                    time_fin: newSlide["endTime"]
+                    time_fin: newSlide["endTime"],
+                    plannings: newSlide["plannings"]
                 };
                 addToTextStream(newSlide);
                 var s = createSlide(newSlide, true);

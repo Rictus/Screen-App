@@ -97,7 +97,7 @@ if (typeof login == 'undefined' || login == null) {
             <label for="startDate">Date d'apparition </label>
 
             <div class="dateInput">
-                <input id="useStartDate" class="optionnalFunction" name="useStartDate" type="checkbox"/>
+                <input id="useStartDate" class="optionnalFunction" value="useStartDate" name="useStartDate" type="checkbox" checked />
                 <input type="datetime-local" name="startDate" id="startDate" max="<%= nowTenYear %>-12-31T23:59"
                        min="<%= nowYear + '-' + nowMonth + '-' + nowDay + 'T' + nowHour + ':' + nowMinuts %>"
                        value="<%= nowYear + '-' + nowMonth + '-' + nowDay + 'T' + nowHour + ':' + nowMinuts %>" required
@@ -111,7 +111,7 @@ if (typeof login == 'undefined' || login == null) {
             <label for="endDate">Date d'expiration </label>
 
             <div class="dateInput">
-                <input id="useEndDate" class="optionnalFunction" name="useEndDate" type="checkbox"/>
+                <input id="useEndDate" class="optionnalFunction" value="useEndDate" name="useEndDate" type="checkbox" checked />
                 <input type="datetime-local" name="endDate" id="endDate" max="<%= nowTenYear %>-12-31T23:59"
                        min="<%= nowYear + '-' + nowMonth + '-' + nowDay + 'T' + nowNextHour + ':' + nowMinuts %>"
                        value="<%= nowYear + '-' + nowMonth + '-' + nowNextDay + 'T' + nowHour + ':' + nowMinuts %>"
@@ -234,25 +234,50 @@ if (typeof login == 'undefined' || login == null) {
     var slidePlanningContent_balise = document.getElementById('slidePlanningContent_balise');
     var addOneLineOfScheduling = document.getElementById('addOneLineOfScheduling');
     var deleteLastLineOfScheduling = document.getElementById('deleteLastLineOfScheduling');
+    var linesOfSchedulesListeners = [];
     var planificationObjects = [];
 
 
     var addOneLineOfSchedulingAction = function () {
         var newChild = createSchedulingElement();
         slidePlanningContent_balise.appendChild(newChild);
-        updatePlanificationObjects();
-        updatePreviewSlide();
+        setLinesOfSchedulesListeners();
     };
     var deleteLastLineOfSchedulingAction = function () {
+        unsetLinesOfSchedulesListeners();
         var p = document.getElementsByClassName('scheduling');
-        if (p.length > 0) {
+        if (p.length > 1) {
             p[0].parentNode.removeChild(p[p.length - 1]);
+        }
+        setLinesOfSchedulesListeners();
+    };
+
+    var updateLinesOfSchedulesListeners = function (funToCall) {
+        var nameSchedule = Array.prototype.slice.call(slidePlanningContent_balise.getElementsByClassName('nameSchedule'));
+        var dateSchedule = Array.prototype.slice.call(slidePlanningContent_balise.getElementsByClassName('dateSchedule'));
+        var furtherInfosSchedule = Array.prototype.slice.call(slidePlanningContent_balise.getElementsByClassName('furtherInfosSchedule'));
+        var allElements = [];
+        allElements = allElements.concat(nameSchedule, dateSchedule, furtherInfosSchedule);
+        var whenAScheduleIsUpdated = function(){
+            updatePlanificationObjects();
+            updatePreviewSlide();
+        };
+        for (var i = 0; i < allElements.length; i++) {
+            allElements[i][funToCall]('input', whenAScheduleIsUpdated);
         }
         updatePlanificationObjects();
         updatePreviewSlide();
     };
+    var unsetLinesOfSchedulesListeners = function () {
+        updateLinesOfSchedulesListeners('removeEventListener');
+    };
+    var setLinesOfSchedulesListeners = function () {
+        updateLinesOfSchedulesListeners('addEventListener');
+    };
+
     addOneLineOfScheduling.addEventListener('click', addOneLineOfSchedulingAction);
     deleteLastLineOfScheduling.addEventListener('click', deleteLastLineOfSchedulingAction);
+
     var updatePlanificationObjects = function () {
         planificationObjects = [];
         var p = document.getElementsByClassName('scheduling');
@@ -266,7 +291,6 @@ if (typeof login == 'undefined' || login == null) {
                 further: furtherInfosSchedule
             });
         }
-        console.log(planificationObjects);
     };
 
     slideTitle.onkeyup = updatePreviewSlide;
@@ -340,6 +364,7 @@ if (typeof login == 'undefined' || login == null) {
                 break;
             case 'planning':
                 slidePlanningContent_balise.style.display = displayStyle;
+                setLinesOfSchedulesListeners();
                 break;
             default:
                 console.warn("Please work for the " + slideTypeValue + " slide !");
@@ -381,7 +406,7 @@ if (typeof login == 'undefined' || login == null) {
             time_debut: startDateValue.split("T")[1],
             date_fin: endDateValue.split("T")[0],
             time_fin: endDateValue.split("T")[1],
-            planifications: planificationObjects
+            plannings: planificationObjects
         };
 
         var s = createSlide(previewSlide, false, true);
